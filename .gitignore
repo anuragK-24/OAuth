@@ -1,3 +1,5 @@
 oauth-app/node_modules
 oauth-backend/node_modules
+
+oauth-app/.env
 oauth-backend/.env

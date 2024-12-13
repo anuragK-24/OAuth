@@ -1,11 +1,13 @@
-import './App.css'
-import Auth from './components/Auth'
+import { GoogleOAuthProvider } from "@react-oauth/google";
+import "./App.css";
+import Auth from "./components/Auth";
 
 function App() {
-
   return (
-      <Auth/>
-  )
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+      <Auth />
+    </GoogleOAuthProvider>
+  );
 }
 
-export default App
+export default App;

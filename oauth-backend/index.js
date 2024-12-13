@@ -1,80 +1,43 @@
 require("dotenv").config();
-
-const passport = require("passport");
-const session = require("express-session");
-const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const express = require("express");
-const login = require("./routers/login");
+const { OAuth2Client } = require("google-auth-library");
+const cors = require("cors");
 
 const app = express();
+app.use(express.json());
+
 app.use(
-  session({
-    secret: "secret",
-    resave: false,
-    saveUninitialized: true,
+  cors({
+    origin: "http://localhost:5173", // Replace with your frontend's URL
+    credentials: true,
   })
 );
 
-app.use(passport.initialize());
-app.use(passport.session());
+// Google OAuth2 client setup
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_SECRET);
 
-// app.use(express.json());
+// Google Login Route
+app.post("/api/auth/google-login", async (req, res) => {
+  const { token } = req.body;
 
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "http://localhost:5000/auth/google/callback",
-    },
-    (accessToken, refreshToken, profile, done) => {
-      return done(null, profile); // `profile` contains the user's Google profile information
-    }
-  )
-);
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
 
-passport.serializeUser((user, done) => {
-  done(null, user); // Pass the user object (profile) to session storage
-});
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name } = payload;
 
-passport.deserializeUser((user, done) => {
-  done(null, user); // Retrieve the user object from session storage
-});
-
-app.get("/", (req, res) => {
-  res.send("<a href='/auth/google'> Login with google </a>");
-});
-
-app.get(
-  "/auth/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-
-app.get("/profile", (req, res) => {
-  // Ensure the user is logged in and `req.user` is populated
-  if (req.isAuthenticated()) {
-    res.send(`Welcome ${req.user.displayName}`);
-  } else {
-    res.redirect("/");
+    // Dynamically use the Google user data
+    res.status(200).json({ user: { googleId, email, username: name } });
+  } catch (error) {
+    console.error("Error in Google Login:", error);
+    res.status(401).json({ error: "Google token invalid" });
   }
 });
 
-app.get(
-  "/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/" }),
-  (req, res) => {
-    res.redirect("/profile");
-  }
-);
-
-app.get("/logout", (req, res) => {
-  req.logout((err) => {
-    if (err) {
-      return res.status(500).send("Error logging out");
-    }
-    res.redirect("/");
-  });
+// Start the server
+app.listen(5000, () => {
+  console.log("Backend is running on http://localhost:5000");
 });
-// app.use("/api/login", login);
-
-app.listen(5000, () => console.log("Server is running on Port 5000"));
